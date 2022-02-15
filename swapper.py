@@ -14,12 +14,17 @@ from colors import Color
 from PIL import Image
 import piexif
 
-
 class GridLabel(QLabel):
     def __init__(self, parent, grid):
         QLabel.__init__(self, parent)
         self.grid = grid
         self.clip = None
+        self.lock = []
+        for i in range(7):
+            l = []
+            for j in range(16):
+                l.append(False)
+            self.lock.append(l)
         self.images = {
             Color.GREEN_PINK_FLOWERS: QImage('img/GREEN_PINK_FLOWERS.jpg'),
             Color.WHITE_PINK_FLOWERS: QImage('img/WHITE_PINK_FLOWERS.jpg'),
@@ -42,6 +47,19 @@ class GridLabel(QLabel):
             s += "\n"
         return s
 
+    def getLock(self):
+        lock = []
+        for y in range(len(self.lock)):
+            l = []
+            for x in range(len(self.lock[y])):
+                if self.lock[y][x]:
+                    #print('Self.lock[{y}][{x}]')
+                    l.append(self.grid[y][x])
+                else:
+                    l.append(None)
+            lock.append(l)
+        return lock
+
     def toImage(self):
         img = QImage(720, 315, QImage.Format.Format_RGB32)
         painter = QPainter(img)
@@ -57,6 +75,8 @@ class GridLabel(QLabel):
             for x in range(len(self.grid[y])):
                 cell = self.grid[y][x]
                 painter.drawImage(QPoint(x*45, y*45), self.images[cell])
+                if self.lock[y][x]:
+                    painter.fillRect(x*45+10, y*45+10, 25, 25, QColor.fromRgb(125,125,125,200))
         if self.clip != None:
             painter.fillRect(self.clip[1]*45, self.clip[0]
                              * 45, 45, 45, QColor.fromRgb(255, 0, 0, 64))
@@ -65,16 +85,20 @@ class GridLabel(QLabel):
         if event.button() == Qt.LeftButton:
             x = int(event.x()/45)
             y = int(event.y()/45)
-            if self.clip != None and self.clip[0] == y and self.clip[1] == x:
-                self.clip = None
-            else:
-                if self.clip == None:
-                    self.clip = [y, x]
-                else:
-                    color = self.grid[self.clip[0]][self.clip[1]]
-                    self.grid[self.clip[0]][self.clip[1]] = self.grid[y][x]
-                    self.grid[y][x] = color
+            locked = self.lock[y][x]
+            if QApplication.keyboardModifiers() == Qt.ControlModifier:
+                self.lock[y][x] = not locked
+            elif not locked:
+                if self.clip != None and self.clip[0] == y and self.clip[1] == x:
                     self.clip = None
+                else:
+                    if self.clip == None:
+                        self.clip = [y, x]
+                    else:
+                        color = self.grid[self.clip[0]][self.clip[1]]
+                        self.grid[self.clip[0]][self.clip[1]] = self.grid[y][x]
+                        self.grid[y][x] = color
+                        self.clip = None
             self.repaint(0, 0, 720, 315)
 
 
@@ -85,7 +109,7 @@ class Swapper(QWidget):
         self.resize(750, 365)
         layout = QVBoxLayout()
         self.setLayout(layout)
-        self.gridLabel = GridLabel(self, self.generate())
+        self.gridLabel = GridLabel(self, self.generate(None))
         menuBar = QMenuBar(self)
         fileMenu = QMenu("&File", self)
         menuBar.addMenu(fileMenu)
@@ -137,11 +161,11 @@ class Swapper(QWidget):
         QCoreApplication.exit(0)
 
     def regenerate(self):
-        grid = self.generate()
+        grid = self.generate(self.gridLabel.getLock())
         self.gridLabel.setGrid(grid)
 
-    def generate(self):
-        return generate_grid_whithout_collision()
+    def generate(self, lock):
+        return generate_grid_whithout_collision(lock)
 
 
 if __name__ == "__main__":
