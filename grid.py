@@ -19,10 +19,10 @@ def grid_to_string(grid):
 
 def generate_grid(lock):
     jars = {
-        Color.WHITE_PINK_FLOWERS: 30,
+        Color.WHITE_PINK_FLOWERS: 24,
         Color.WHITE_GREEN_DOTS: 26,
         Color.GREEN_PINK_FLOWERS: 18,
-        Color.PINK: 30,
+        Color.PINK: 36,
         Color.LIGHT_PINK_PINK_DOTS: 8,
     }
     grid_collision = False

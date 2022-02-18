@@ -176,7 +176,7 @@ class Swapper(QWidget):
             self, 'Open file', folder, "Image files (*.jpg)")
         if fname[0] != '':
             exif = piexif.load(Image.open(fname[0]).info['exif'])
-            if exif['0th'][333] != '':
+            if 333 in exif['0th'] and exif['0th'][333] != '':
                 lock_numbers = exif['0th'][333].decode("UTF-8").rstrip('\n')
                 lock = []
                 for line in lock_numbers.split("\n"):
