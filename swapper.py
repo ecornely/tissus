@@ -15,6 +15,8 @@ from colors import Color
 from PIL import Image
 import piexif
 
+lock_image = QImage('img/lock.png')
+
 class GridLabel(QLabel):
     def __init__(self, parent, grid):
         QLabel.__init__(self, parent)
@@ -48,6 +50,17 @@ class GridLabel(QLabel):
             s += "\n"
         return s
 
+    def setLock(self, lock):
+        self.lock = lock
+
+    def getLockString(self):
+        s = ""
+        for i in range(len(self.lock)):
+            for j in range(len(self.lock[i])):
+                s += str('1' if self.lock[i][j] else '0')
+            s += "\n"
+        return s
+
     def getLock(self):
         lock = []
         for y in range(len(self.lock)):
@@ -73,12 +86,18 @@ class GridLabel(QLabel):
     def paintEvent(self, paintEvent):
         cell_size = math.floor(self.width() / 16)
         painter = QPainter(self)
+        lock_size = math.floor(cell_size / 4)
+        small_lock = lock_image.scaled(lock_size, lock_size, aspectRatioMode=Qt.AspectRatioMode.IgnoreAspectRatio, transformMode=Qt.TransformationMode.SmoothTransformation)            
         for y in range(len(self.grid)):
             for x in range(len(self.grid[y])):
                 cell = self.grid[y][x]
                 painter.drawImage(QPoint(x*cell_size, y*cell_size), self.images[cell].scaled(cell_size, cell_size, aspectRatioMode=Qt.AspectRatioMode.IgnoreAspectRatio, transformMode=Qt.TransformationMode.SmoothTransformation))
                 if self.lock[y][x]:
-                    painter.fillRect(x*cell_size+10, y*cell_size+10, cell_size-20, cell_size-20, QColor.fromRgb(125,125,125,200))
+                    top_left = QPoint(x*cell_size, y*cell_size)
+                    top_left += QPoint(math.floor(cell_size/2), math.floor(cell_size/2))
+                    top_left -= QPoint(math.floor(lock_size/2), math.floor(lock_size/2))
+                    painter.drawImage(top_left, small_lock)
+                    #painter.fillRect(x*cell_size+10, y*cell_size+10, cell_size-20, cell_size-20, QColor.fromRgb(125,125,125,200))
         if self.clip != None:
             painter.fillRect(self.clip[1]*cell_size, self.clip[0]
                              * cell_size, cell_size, cell_size, QColor.fromRgb(255, 0, 0, 64))
@@ -141,7 +160,11 @@ class Swapper(QWidget):
             buffer.open(QBuffer.ReadWrite)
             self.gridLabel.toImage().save(buffer, "JPG", 100)
             img = Image.open(io.BytesIO(buffer.data()))
-            exif_dict = {'0th': {270: self.gridLabel.getGridString()}, 'Exif': {}, 'GPS': {
+            exif_dict = {
+                '0th': {
+                    270: self.gridLabel.getGridString(),
+                    333: self.gridLabel.getLockString()
+                }, 'Exif': {}, 'GPS': {
             }, 'Interop': {}, '1st': {}, 'thumbnail': None}
             exif_bytes = piexif.dump(exif_dict)
             img.save(fname[0], "JPEG", optimize=True,
@@ -152,8 +175,15 @@ class Swapper(QWidget):
         fname = QFileDialog.getOpenFileName(
             self, 'Open file', folder, "Image files (*.jpg)")
         if fname[0] != '':
-            grid_numbers = piexif.load(Image.open(fname[0]).info['exif'])[
-                '0th'][270].decode("UTF-8").rstrip('\n')
+            exif = piexif.load(Image.open(fname[0]).info['exif'])
+            if exif['0th'][333] != '':
+                lock_numbers = exif['0th'][333].decode("UTF-8").rstrip('\n')
+                lock = []
+                for line in lock_numbers.split("\n"):
+                    colors = list(map(lambda n: int(n) == 1, list(line)))
+                    lock.append(colors)
+                self.gridLabel.setLock(lock)
+            grid_numbers = exif['0th'][270].decode("UTF-8").rstrip('\n')
             grid = []
             for line in grid_numbers.split("\n"):
                 colors = list(map(lambda n: Color.fromValue(int(n)), list(line)))
