@@ -5,6 +5,7 @@ import sys
 import os
 import os.path
 import io
+import math
 from time import sleep
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -26,18 +27,18 @@ class GridLabel(QLabel):
                 l.append(False)
             self.lock.append(l)
         self.images = {
-            Color.GREEN_PINK_FLOWERS: QImage('img/GREEN_PINK_FLOWERS.jpg'),
-            Color.WHITE_PINK_FLOWERS: QImage('img/WHITE_PINK_FLOWERS.jpg'),
-            Color.WHITE_GREEN_DOTS: QImage('img/WHITE_GREEN_DOTS.jpg'),
-            Color.PINK: QImage('img/PINK.jpg'),
-            Color.LIGHT_PINK_PINK_DOTS: QImage('img/LIGHT_PINK_PINK_DOTS.jpg'),
+            Color.GREEN_PINK_FLOWERS: QImage('img/large/GREEN_PINK_FLOWERS.jpg'),
+            Color.WHITE_PINK_FLOWERS: QImage('img/large/WHITE_PINK_FLOWERS.jpg'),
+            Color.WHITE_GREEN_DOTS: QImage('img/large/WHITE_GREEN_DOTS.jpg'),
+            Color.PINK: QImage('img/large/PINK.jpg'),
+            Color.LIGHT_PINK_PINK_DOTS: QImage('img/large/LIGHT_PINK_PINK_DOTS.jpg'),
         }
         self.resize(720, 315)
 
     def setGrid(self, grid):
         self.grid = grid
         self.clip = None
-        self.repaint(0, 0, 720, 315)
+        self.repaint(0, 0, self.width(), self.height())
 
     def getGridString(self):
         s = ""
@@ -66,25 +67,27 @@ class GridLabel(QLabel):
         for y in range(len(self.grid)):
             for x in range(len(self.grid[y])):
                 cell = self.grid[y][x]
-                painter.drawImage(QPoint(x*45, y*45), self.images[cell])
+                painter.drawImage(QPoint(x*45, y*45), self.images[cell].scaled(45, 45, aspectRatioMode=Qt.AspectRatioMode.IgnoreAspectRatio, transformMode=Qt.TransformationMode.SmoothTransformation))
         return img
 
     def paintEvent(self, paintEvent):
+        cell_size = math.floor(self.width() / 16)
         painter = QPainter(self)
         for y in range(len(self.grid)):
             for x in range(len(self.grid[y])):
                 cell = self.grid[y][x]
-                painter.drawImage(QPoint(x*45, y*45), self.images[cell])
+                painter.drawImage(QPoint(x*cell_size, y*cell_size), self.images[cell].scaled(cell_size, cell_size, aspectRatioMode=Qt.AspectRatioMode.IgnoreAspectRatio, transformMode=Qt.TransformationMode.SmoothTransformation))
                 if self.lock[y][x]:
-                    painter.fillRect(x*45+10, y*45+10, 25, 25, QColor.fromRgb(125,125,125,200))
+                    painter.fillRect(x*cell_size+10, y*cell_size+10, cell_size-20, cell_size-20, QColor.fromRgb(125,125,125,200))
         if self.clip != None:
-            painter.fillRect(self.clip[1]*45, self.clip[0]
-                             * 45, 45, 45, QColor.fromRgb(255, 0, 0, 64))
+            painter.fillRect(self.clip[1]*cell_size, self.clip[0]
+                             * cell_size, cell_size, cell_size, QColor.fromRgb(255, 0, 0, 64))
 
     def mousePressEvent(self, event):
+        cell_size = math.floor(self.width() / 16)
         if event.button() == Qt.LeftButton:
-            x = int(event.x()/45)
-            y = int(event.y()/45)
+            x = int(event.x()/cell_size)
+            y = int(event.y()/cell_size)
             locked = self.lock[y][x]
             if QApplication.keyboardModifiers() == Qt.ControlModifier:
                 self.lock[y][x] = not locked
@@ -99,7 +102,7 @@ class GridLabel(QLabel):
                         self.grid[self.clip[0]][self.clip[1]] = self.grid[y][x]
                         self.grid[y][x] = color
                         self.clip = None
-            self.repaint(0, 0, 720, 315)
+            self.repaint(0, 0, self.width(), self.height())
 
 
 class Swapper(QWidget):
